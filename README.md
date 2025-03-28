@@ -25,6 +25,8 @@ chmod +x phase3-logging-monitoring.sh
 ./phase3-logging-monitoring.sh
 ```
 
+Phase4-display-hardware.sh
+
 ```console
 git clone https://github.com/cubensquare/examshield.git
 cd your-repo
