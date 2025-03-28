@@ -36,7 +36,7 @@ chmod +x phase4-display-hardware.sh
 
  phase6-rebuild-final.sh
 
-``console
+```console
 git clone https://github.com/cubensquare/examshield.git
 cd your-repo
 chmod +x phase6-rebuild-final.sh
