@@ -19,8 +19,15 @@ chmod +x phase2-ui-hardening.sh
 phase3-logging-monitoring.sh
 
 ```console
-git clone https://github.com/your-username/your-repo.git
+git clone https://github.com/cubensquare/examshield.git
 cd your-repo
 chmod +x phase3-logging-monitoring.sh
 ./phase3-logging-monitoring.sh
+```
+
+```console
+git clone https://github.com/cubensquare/examshield.git
+cd your-repo
+chmod +x phase4-display-hardware.sh
+./phase4-display-hardware.sh
 ```
