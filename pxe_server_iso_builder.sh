@@ -1,103 +1,71 @@
 #!/bin/bash
 
-### PXE Server ISO Builder Script ###
+# Clone current PXE Server into a bootable ISO image
+# Author: Goms | CubenSquare
 # Version: v1
-# Purpose: Automate building a portable PXE Server ISO from Ubuntu 24.04 base
+# Target: Clone Ubuntu 24.04 PXE Server (Live Server) as-is
 
 set -e
 
-### VARIABLES ###
+### CONFIGURATION ###
 VERSION="v1"
-ISO_NAME="pxe-server-customer-iso-${VERSION}"
-WORKDIR="$HOME/${ISO_NAME}"
-CHROOTDIR="${WORKDIR}/chroot"
-ISODIR="${WORKDIR}/iso"
+ISO_NAME="pxe-server-clone-${VERSION}.iso"
+WORKDIR="$HOME/pxe-server-clone-${VERSION}"
+EXCLUDE_LIST="$WORKDIR/exclude.txt"
 
-### STEP 1: PREPARE DIRECTORIES ###
-echo "[+] Creating working directories..."
-mkdir -p ${CHROOTDIR} ${ISODIR}/{casper,boot/grub,isolinux} ${WORKDIR}/scratch
+echo "[+] Creating working directory: $WORKDIR"
+mkdir -p "$WORKDIR"
 
-### STEP 2: INSTALL REQUIRED TOOLS ###
-echo "[+] Installing build tools..."
-sudo apt update
-sudo apt install -y debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin isolinux syslinux-utils
-
-### STEP 3: DEBOOTSTRAP MINIMAL UBUNTU BASE ###
-echo "[+] Bootstrapping minimal Ubuntu system into chroot..."
-sudo debootstrap --arch=amd64 noble ${CHROOTDIR} http://archive.ubuntu.com/ubuntu/
-
-### STEP 4: CONFIGURE PXE SERVER ENVIRONMENT ###
-echo "[+] Binding /dev into chroot and entering..."
-sudo mount --bind /dev ${CHROOTDIR}/dev
-
-cat <<'EOF' | sudo chroot ${CHROOTDIR} /bin/bash
-  set -e
-  echo "[chroot] Updating and installing PXE services..."
-  apt update
-  DEBIAN_FRONTEND=noninteractive apt install -y apache2 tftpd-hpa nfs-kernel-server isc-dhcp-server net-tools systemd-sysv
-
-  echo "[chroot] Creating service enablement..."
-  systemctl enable apache2
-  systemctl enable tftpd-hpa
-  systemctl enable isc-dhcp-server
-
-  echo "[chroot] PXE chroot setup complete. You may copy PXE configs manually if needed."
-  exit
+### STEP 1: CREATE RSYNC EXCLUDE LIST ###
+cat <<EOF > "$EXCLUDE_LIST"
+/proc/*
+/sys/*
+/dev/*
+/tmp/*
+/run/*
+/mnt/*
+/media/*
+/lost+found/*
+/swapfile
 EOF
 
-sudo umount ${CHROOTDIR}/dev
+### STEP 2: COPY CURRENT SYSTEM ###
+echo "[+] Copying PXE server filesystem using rsync..."
+sudo rsync -aAXv / "$WORKDIR/rootfs" --exclude-from="$EXCLUDE_LIST"
 
-### STEP 5: CREATE SQUASHFS ###
-echo "[+] Creating squashfs from chroot..."
-sudo mksquashfs ${CHROOTDIR} ${ISODIR}/casper/filesystem.squashfs -comp xz
+### STEP 3: PREPARE ISO BOOT STRUCTURE ###
+echo "[+] Creating bootable ISO structure..."
+mkdir -p "$WORKDIR/iso/boot/grub"
 
-### STEP 6: COPY KERNEL & INITRD ###
-echo "[+] Copying kernel and initrd..."
-sudo cp ${CHROOTDIR}/boot/vmlinuz* ${ISODIR}/casper/vmlinuz
-sudo cp ${CHROOTDIR}/boot/initrd.img* ${ISODIR}/casper/initrd
+# Copy kernel and initrd from current system
+cp /boot/vmlinuz* "$WORKDIR/iso/vmlinuz"
+cp /boot/initrd.img* "$WORKDIR/iso/initrd"
 
-### STEP 7: CONFIGURE ISOLINUX (BIOS) ###
-echo "[+] Setting up ISOLINUX for BIOS boot..."
-cp /usr/lib/ISOLINUX/isolinux.bin ${ISODIR}/isolinux/
-cp /usr/lib/syslinux/modules/bios/* ${ISODIR}/isolinux/
-
-cat <<EOF > ${ISODIR}/isolinux/isolinux.cfg
-UI menu.c32
-PROMPT 0
-MENU TITLE PXE Server ISO Boot Menu
-TIMEOUT 50
-
-LABEL live
-  menu label ^Start PXE Server
-  kernel /casper/vmlinuz
-  append initrd=/casper/initrd boot=casper quiet splash ---
-EOF
-
-### STEP 8: CONFIGURE GRUB (UEFI) ###
-echo "[+] Creating GRUB config for UEFI..."
-cat <<EOF > ${ISODIR}/boot/grub/grub.cfg
-set timeout=10
-menuentry "Start PXE Server (Live)" {
-    linux /casper/vmlinuz boot=casper quiet splash ---
-    initrd /casper/initrd
+# Create GRUB config
+cat <<EOF > "$WORKDIR/iso/boot/grub/grub.cfg"
+set timeout=5
+menuentry "Boot PXE Server Clone" {
+    linux /vmlinuz root=/dev/ram0 ramdisk_size=1500000 root=/rootfs boot=live toram=filesystem.squashfs
+    initrd /initrd
 }
 EOF
 
-### STEP 9: BUILD ISO ###
-echo "[+] Building ISO..."
-cd ${ISODIR}
-sudo xorriso -as mkisofs \
-  -iso-level 3 -o ../${ISO_NAME}.iso \
-  -full-iso9660-filenames \
-  -volid "PXE_SERVER" \
+### STEP 4: CREATE SQUASHFS ###
+echo "[+] Creating squashfs of root filesystem..."
+mksquashfs "$WORKDIR/rootfs" "$WORKDIR/iso/filesystem.squashfs" -comp xz -e boot
+
+### STEP 5: BUILD ISO ###
+echo "[+] Building ISO using xorriso..."
+xorriso -as mkisofs \
+  -o "$ISO_NAME" \
   -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
-  -c isolinux/boot.cat -b isolinux/isolinux.bin \
+  -c boot.cat -b boot/grub/grub.cfg \
   -no-emul-boot -boot-load-size 4 -boot-info-table \
-  -eltorito-alt-boot -e boot/grub/efi.img \
-  -no-emul-boot -isohybrid-gpt-basdat .
+  -eltorito-alt-boot -e boot/grub/grub.cfg \
+  -no-emul-boot -isohybrid-gpt-basdat \
+  "$WORKDIR/iso"
 
-cd ~
-echo "✅ ISO Created: ${WORKDIR}/${ISO_NAME}.iso"
-echo "🎯 You can now flash this ISO to USB or share with client to boot PXE Server."
-
-exit 0
+### DONE ###
+echo "✅ PXE Server ISO created: $ISO_NAME"
+echo "📁 Location: $PWD/$ISO_NAME"
+echo "💡 Flash this ISO using BalenaEtcher, dd, or Rufus to boot the PXE server elsewhere."
