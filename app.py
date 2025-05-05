@@ -5,6 +5,32 @@ import sqlite3
 app = Flask(__name__)
 DB_FILE = 'pxe_status.db'
 
+import sqlite3
+from flask import Flask, request, render_template_string
+from datetime import datetime
+
+app = Flask(__name__)
+
+# === DB Init Logic ===
+def init_db():
+    conn = sqlite3.connect('machines.db')
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS machines (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mac TEXT NOT NULL,
+            ip TEXT NOT NULL,
+            hostname TEXT NOT NULL,
+            roll_number TEXT,
+            status TEXT DEFAULT 'Pending',
+            last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+init_db()  # Automatically ensures table exists
+
 @app.route('/')
 def index():
     conn = sqlite3.connect(DB_FILE)
