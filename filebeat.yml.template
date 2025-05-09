@@ -1,0 +1,16 @@
+filebeat.inputs:
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/examshield/*.log
+
+# Dynamically fetch PXE server IP from default route
+setup.template.name: "pxe-client"
+setup.template.pattern: "pxe-client-*"
+
+processors:
+  - add_host_metadata: ~
+  - add_cloud_metadata: ~
+
+output.logstash:
+  hosts: ["${PXE_SERVER_IP}:5044"]
