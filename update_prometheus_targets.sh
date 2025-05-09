@@ -3,32 +3,45 @@
 PROM_FILE="/etc/prometheus/prometheus.yml"
 TMP_FILE="/tmp/prometheus_new.yml"
 
-# Auto-detect PXE subnet from default interface IP
+# Detect default network interface
 PXE_IFACE=$(ip route | awk '/default/ {print $5}')
-PXE_SUBNET=$(ip -4 addr show $PXE_IFACE | grep -oP '(?<=inet\s)\d+(\.\d+){3}/\d+')
+PXE_SUBNET=$(ip -4 addr show $PXE_IFACE | awk '/inet / {print $2}')
 PXE_BASE=$(echo "$PXE_SUBNET" | cut -d'.' -f1-3)
 
-# Begin Prometheus config
-cat <<EOF > $TMP_FILE
+# Start config file
+cat <<EOF > "$TMP_FILE"
 global:
   scrape_interval: 15s
 
 scrape_configs:
   - job_name: 'node_exporters'
     static_configs:
-      targets:
+      - targets: [
 EOF
 
-# Scan for active PXE clients on port 9100
+# Scan PXE clients and build targets list
+FIRST=true
 for ip in $(seq 2 254); do
-  TARGET_IP="$PXE_BASE.$ip"
-  if nc -z -w1 $TARGET_IP 9100 2>/dev/null; then
-    echo "        - '$TARGET_IP:9100'" >> $TMP_FILE
+  TARGET="$PXE_BASE.$ip"
+  if nc -z -w1 $TARGET 9100 2>/dev/null; then
+    if [ "$FIRST" = true ]; then
+      echo "          \"$TARGET:9100\"" >> "$TMP_FILE"
+      FIRST=false
+    else
+      echo "          ,\"$TARGET:9100\"" >> "$TMP_FILE"
+    fi
   fi
 done
 
-# Replace and restart
-mv $TMP_FILE $PROM_FILE
-systemctl restart prometheus
+# Close list and finalize file
+echo "        ]" >> "$TMP_FILE"
 
-echo "[✓] Prometheus configuration updated with live PXE clients on $PXE_BASE.0/24"
+# Validate and apply
+if promtool check config "$TMP_FILE"; then
+  mv "$TMP_FILE" "$PROM_FILE"
+  systemctl restart prometheus
+  echo "[✓] Prometheus config updated with PXE clients on ${PXE_BASE}.0/24"
+else
+  echo "[!] Prometheus config invalid. Skipping update."
+  rm -f "$TMP_FILE"
+fi
