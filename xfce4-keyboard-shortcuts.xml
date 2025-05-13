@@ -1,0 +1,12 @@
+mkdir -p /home/$PXE_USERNAME/.config/xfce4/xfconf/xfce-perchannel-xml
+
+cat <<EOF > /home/$PXE_USERNAME/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-keyboard-shortcuts.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-keyboard-shortcuts" version="1.0">
+  <property name="custom" type="empty">
+    <property name="<Primary>i" type="string" value="/etc/network/show-system-info.sh"/>
+  </property>
+</channel>
+EOF
+
+chown -R $PXE_USERNAME:$PXE_USERNAME /home/$PXE_USERNAME/.config
