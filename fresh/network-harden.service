@@ -1,0 +1,17 @@
+sudo tee /etc/systemd/system/network-harden.service > /dev/null <<EOF
+[Unit]
+Description=Apply network hardening rules
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/network_hardening.sh
+StandardOutput=append:/var/log/network-harden.log
+StandardError=append:/var/log/network-harden-error.log
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl enable network-harden.service
