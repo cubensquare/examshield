@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Exec=/home/student/.config/examshield/pxe-server-detect.sh
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=PXE Server Detect
