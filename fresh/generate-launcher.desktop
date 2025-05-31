@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Generate Launcher
+Exec=/usr/local/bin/generate-launch-wrapper.sh
+X-GNOME-Autostart-enabled=true
