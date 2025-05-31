@@ -6,16 +6,20 @@
 LOG_DIR="/var/log/examshield"
 mkdir -p "$LOG_DIR"
 
-# Get active network interface and default gateway
+# Get interface and gateway
 INTERFACE=$(ip -o -4 route show to default | awk '{print $5}')
 DEFAULT_GW=$(ip -o -4 route show to default | awk '{print $3}')
-FULL_IP=$(ip -o -f inet addr show "$INTERFACE" | awk '{print $4}')
-SUBNET_BASE=$(echo "$FULL_IP" | cut -d/ -f1 | cut -d. -f1-3)
+
+# Get the IP address and derive subnet dynamically
+IPADDR=$(ip -4 addr show "$INTERFACE" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+SUBNET_BASE=$(echo "$IPADDR" | cut -d. -f1-3)
 BROADCAST_ADDR="${SUBNET_BASE}.255"
 SUBNET_RANGE="${SUBNET_BASE}.0/24"
 
-echo "[i] Interface: $INTERFACE" >> "$LOG_DIR/net_config.log"
+# Log what was detected
+echo "[i] Interface: $INTERFACE, IP: $IPADDR" >> "$LOG_DIR/net_config.log"
 echo "[i] Gateway: $DEFAULT_GW, Subnet: $SUBNET_RANGE" >> "$LOG_DIR/net_config.log"
+
 
 # ======================
 # IPTABLES - Restrict incoming ports
