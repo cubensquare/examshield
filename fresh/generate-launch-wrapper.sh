@@ -23,5 +23,5 @@ cat <<EOF > /usr/local/bin/launch-wrapper.html
 EOF
 
 # Update permissions
-chown examuser:examuser /usr/local/bin/launch-wrapper.html
+chown student:student /usr/local/bin/launch-wrapper.html
 chmod 644 /usr/local/bin/launch-wrapper.html
