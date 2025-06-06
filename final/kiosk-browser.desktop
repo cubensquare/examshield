@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Exam Browser
+Exec=/usr/local/bin/launch-browser.sh
+X-GNOME-Autostart-enabled=true
