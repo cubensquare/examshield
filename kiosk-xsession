@@ -1,0 +1,12 @@
+#!/bin/bash
+# Simple background so you don’t see grey Xroot weave
+xsetroot -solid "#000000"
+
+# Ensure exam.local is in /etc/hosts
+PXE_IP=$(ip route | grep -oP 'src \K[\d.]+' | head -n1)
+grep -q "exam.local" /etc/hosts \
+  && sed -i "s/.*exam\.local.*/$PXE_IP exam.local/" /etc/hosts \
+  || echo "$PXE_IP exam.local" >> /etc/hosts
+
+# Launch Firefox via dbus-launch so it gets a session bus
+exec dbus-launch firefox --kiosk --no-remote --private-window http://exam.local
