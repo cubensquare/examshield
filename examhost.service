@@ -1,0 +1,14 @@
+cat << 'EOF' > /etc/systemd/system/examhost.service
+[Unit]
+Description=Map exam.local to PXE server IP
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/map_exam_host.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
